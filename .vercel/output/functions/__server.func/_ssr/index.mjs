@@ -53,7 +53,7 @@ function renderErrorPage() {
 let serverEntryPromise;
 async function getServerEntry() {
   if (!serverEntryPromise) {
-    serverEntryPromise = import("./server-sz2PPY38.mjs").then((n) => n.s).then(
+    serverEntryPromise = import("./server-HknNbnAb.mjs").then((n) => n.s).then(
       (m) => m.default ?? m
     );
   }
@@ -80,11 +80,20 @@ const server = {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
-      console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" }
-      });
+      const errorStackRaw = error instanceof Error ? error.stack : void 0;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = errorStackRaw ?? "No stack trace";
+      console.error("[server.ts] SSR crash:", errorMessage);
+      console.error("[server.ts] Stack:", errorStack);
+      errorStack.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const debugInfo = "";
+      return new Response(
+        renderErrorPage() + debugInfo,
+        {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" }
+        }
+      );
     }
   }
 };

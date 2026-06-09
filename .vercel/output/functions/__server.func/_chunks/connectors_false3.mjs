@@ -1,5 +1,0 @@
-const connectors_false = {};
-throw new Error(`Could not resolve "porto/internal" imported by "@wagmi/connectors".`);
-export {
-  connectors_false as default
-};

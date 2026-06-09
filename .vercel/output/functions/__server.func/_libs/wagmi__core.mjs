@@ -1,5 +1,5 @@
-import { p as parseAccount, g as getAddress, c as createClient, a as custom, e as estimateGas$1, b as getBalance$1, m as multicall$1, d as prepareTransactionRequest$1, r as readContract$1, C as ContractFunctionExecutionError, s as sendTransaction$1, f as signMessage$1, h as hexToString, w as waitForTransactionReceipt$1, i as getTransaction, j as call, k as watchPendingTransactions$1, l as writeContract$1, S as SwitchChainError, n as numberToHex, U as UserRejectedRequestError, o as withRetry, q as withTimeout, R as ResourceUnavailableRpcError, t as fromHex, u as rpc, v as RpcRequestError, x as keccak256, y as stringToHex } from "./viem.mjs";
 import { c as createStore$1, s as subscribeWithSelector, p as persist } from "./zustand.mjs";
+import { p as parseAccount, g as getAddress, c as createClient, a as custom, b as getBalance$1, m as multicall$1, r as readContract$1, C as ContractFunctionExecutionError, h as hexToString, w as waitForTransactionReceipt$1, d as getTransaction, e as call, f as writeContract$1, S as SwitchChainError, n as numberToHex, U as UserRejectedRequestError, i as withRetry, j as withTimeout, R as ResourceUnavailableRpcError } from "./viem.mjs";
 import { E as EventEmitter } from "./eventemitter3.mjs";
 import { c as createStore } from "./mipd.mjs";
 import { r as replaceEqualDeep } from "./tanstack__query-core.mjs";
@@ -101,17 +101,6 @@ class ChainNotConfiguredError extends BaseError$1 {
     });
   }
 }
-class ConnectorAlreadyConnectedError extends BaseError$1 {
-  constructor() {
-    super("Connector already connected.");
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "ConnectorAlreadyConnectedError"
-    });
-  }
-}
 class ConnectorNotConnectedError extends BaseError$1 {
   constructor() {
     super("Connector not connected.");
@@ -167,48 +156,6 @@ class ConnectorUnavailableReconnectingError extends BaseError$1 {
     });
   }
 }
-async function connect(config, parameters) {
-  let connector;
-  if (typeof parameters.connector === "function") {
-    connector = config._internal.connectors.setup(parameters.connector);
-  } else
-    connector = parameters.connector;
-  if (connector.uid === config.state.current)
-    throw new ConnectorAlreadyConnectedError();
-  try {
-    config.setState((x) => ({ ...x, status: "connecting" }));
-    connector.emitter.emit("message", { type: "connecting" });
-    const { connector: _, ...rest } = parameters;
-    const data = await connector.connect(rest);
-    connector.emitter.off("connect", config._internal.events.connect);
-    connector.emitter.on("change", config._internal.events.change);
-    connector.emitter.on("disconnect", config._internal.events.disconnect);
-    await config.storage?.setItem("recentConnectorId", connector.id);
-    config.setState((x) => ({
-      ...x,
-      connections: new Map(x.connections).set(connector.uid, {
-        accounts: rest.withCapabilities ? data.accounts.map((account) => typeof account === "object" ? account.address : account) : data.accounts,
-        chainId: data.chainId,
-        connector
-      }),
-      current: connector.uid,
-      status: "connected"
-    }));
-    return {
-      // TODO(v3): Remove `withCapabilities: true` default behavior so remove compat marshalling
-      // Workaround so downstream connectors work with `withCapabilities` without any changes required
-      accounts: rest.withCapabilities ? data.accounts.map((address) => typeof address === "object" ? address : { address, capabilities: {} }) : data.accounts,
-      chainId: data.chainId
-    };
-  } catch (error) {
-    config.setState((x) => ({
-      ...x,
-      // Keep existing connector connected in case of error
-      status: x.current ? "connected" : "disconnected"
-    }));
-    throw error;
-  }
-}
 async function getConnectorClient(config, parameters = {}) {
   const { assertChainId = true } = parameters;
   let connection;
@@ -259,66 +206,6 @@ async function getConnectorClient(config, parameters = {}) {
     name: "Connector Client",
     transport: (opts) => custom(provider)({ ...opts, retryCount: 0 })
   });
-}
-async function disconnect(config, parameters = {}) {
-  let connector;
-  if (parameters.connector)
-    connector = parameters.connector;
-  else {
-    const { connections: connections2, current } = config.state;
-    const connection = connections2.get(current);
-    connector = connection?.connector;
-  }
-  const connections = config.state.connections;
-  if (connector) {
-    await connector.disconnect();
-    connector.emitter.off("change", config._internal.events.change);
-    connector.emitter.off("disconnect", config._internal.events.disconnect);
-    connector.emitter.on("connect", config._internal.events.connect);
-    connections.delete(connector.uid);
-  }
-  config.setState((x) => {
-    if (connections.size === 0)
-      return {
-        ...x,
-        connections: /* @__PURE__ */ new Map(),
-        current: null,
-        status: "disconnected"
-      };
-    const nextConnection = connections.values().next().value;
-    return {
-      ...x,
-      connections: new Map(connections),
-      current: nextConnection.connector.uid
-    };
-  });
-  {
-    const current = config.state.current;
-    if (!current)
-      return;
-    const connector2 = config.state.connections.get(current)?.connector;
-    if (!connector2)
-      return;
-    await config.storage?.setItem("recentConnectorId", connector2.id);
-  }
-}
-async function estimateGas(config, parameters) {
-  const { chainId, connector, ...rest } = parameters;
-  let account;
-  if (parameters.account)
-    account = parameters.account;
-  else {
-    const connectorClient = await getConnectorClient(config, {
-      account: parameters.account,
-      assertChainId: false,
-      chainId,
-      connector
-    });
-    account = connectorClient.account;
-  }
-  const client = config.getClient({ chainId });
-  const action = getAction(client, estimateGas$1, "estimateGas");
-  return action({ ...rest, account });
 }
 async function getBalance(config, parameters) {
   const { address, blockNumber, blockTag, chainId } = parameters;
@@ -442,16 +329,6 @@ function getConnection(config) {
       };
   }
 }
-let previousConnections = [];
-function getConnections(config) {
-  const connections = [...config.state.connections.values()];
-  if (config.state.status === "reconnecting")
-    return previousConnections;
-  if (deepEqual(previousConnections, connections))
-    return previousConnections;
-  previousConnections = connections;
-  return connections;
-}
 async function multicall(config, parameters) {
   const { allowFailure = true, chainId, contracts, ...rest } = parameters;
   const client = config.getClient({ chainId });
@@ -460,26 +337,6 @@ async function multicall(config, parameters) {
     allowFailure,
     contracts,
     ...rest
-  });
-}
-async function prepareTransactionRequest(config, parameters) {
-  const { account: account_, chainId, ...rest } = parameters;
-  let account;
-  if (account_)
-    account = account_;
-  else {
-    const connectorClient = await getConnectorClient(config, {
-      account: account_,
-      assertChainId: false,
-      chainId
-    });
-    account = connectorClient.account;
-  }
-  const client = config.getClient({ chainId });
-  const action = getAction(client, prepareTransactionRequest$1, "prepareTransactionRequest");
-  return action({
-    ...rest,
-    ...account ? { account } : {}
   });
 }
 function readContract(config, parameters) {
@@ -611,46 +468,6 @@ async function reconnect(config, parameters = {}) {
   isReconnecting = false;
   return connections;
 }
-async function sendTransaction(config, parameters) {
-  const { account, chainId, connector, ...rest } = parameters;
-  let client;
-  if (typeof account === "object" && account?.type === "local")
-    client = config.getClient({ chainId });
-  else
-    client = await getConnectorClient(config, {
-      account: account ?? void 0,
-      assertChainId: false,
-      chainId,
-      connector
-    });
-  const chain = (() => {
-    if (!chainId || client.chain?.id === chainId)
-      return client.chain;
-    return { id: chainId };
-  })();
-  const action = getAction(client, sendTransaction$1, "sendTransaction");
-  const hash = await action({
-    ...rest,
-    ...account ? { account } : {},
-    assertChainId: !!chainId,
-    chain,
-    gas: rest.gas ?? void 0
-  });
-  return hash;
-}
-async function signMessage(config, parameters) {
-  const { account, connector, ...rest } = parameters;
-  let client;
-  if (typeof account === "object" && account.type === "local")
-    client = config.getClient();
-  else
-    client = await getConnectorClient(config, { account, connector });
-  const action = getAction(client, signMessage$1, "signMessage");
-  return action({
-    ...rest,
-    ...account ? { account } : {}
-  });
-}
 class ProviderNotFoundError extends BaseError$1 {
   constructor() {
     super("Provider not found.");
@@ -734,38 +551,6 @@ function watchConnection(config, parameters) {
     }
   });
 }
-function watchConnections(config, parameters) {
-  const { onChange } = parameters;
-  return config.subscribe(() => getConnections(config), onChange, {
-    equalityFn: deepEqual
-  });
-}
-function watchConnectors(config, parameters) {
-  const { onChange } = parameters;
-  return config._internal.connectors.subscribe((connectors, prevConnectors) => {
-    onChange(Object.values(connectors), prevConnectors);
-  });
-}
-function watchPendingTransactions(config, parameters) {
-  const { syncConnectedChain = config._internal.syncConnectedChain, ...rest } = parameters;
-  let unwatch;
-  const listener = (chainId) => {
-    if (unwatch)
-      unwatch();
-    const client = config.getClient({ chainId });
-    const action = getAction(client, watchPendingTransactions$1, "watchPendingTransactions");
-    unwatch = action(rest);
-    return unwatch;
-  };
-  const unlisten = listener(parameters.chainId);
-  let unsubscribe;
-  if (syncConnectedChain && !parameters.chainId)
-    unsubscribe = config.subscribe(({ chainId }) => chainId, async (chainId) => listener(chainId));
-  return () => {
-    unlisten?.();
-    unsubscribe?.();
-  };
-}
 async function writeContract(config, parameters) {
   const { account, chainId, connector, ...request } = parameters;
   let client;
@@ -825,8 +610,8 @@ function injected(parameters = {}) {
   }
   let accountsChanged;
   let chainChanged;
-  let connect2;
-  let disconnect2;
+  let connect;
+  let disconnect;
   return createConnector((config) => ({
     get icon() {
       return getTarget().icon;
@@ -841,9 +626,9 @@ function injected(parameters = {}) {
     async setup() {
       const provider = await this.getProvider();
       if (provider?.on && parameters.target) {
-        if (!connect2) {
-          connect2 = this.onConnect.bind(this);
-          provider.on("connect", connect2);
+        if (!connect) {
+          connect = this.onConnect.bind(this);
+          provider.on("connect", connect);
         }
         if (!accountsChanged) {
           accountsChanged = this.onAccountsChanged.bind(this);
@@ -884,9 +669,9 @@ function injected(parameters = {}) {
           });
           accounts = requestedAccounts.map((x) => getAddress(x));
         }
-        if (connect2) {
-          provider.removeListener("connect", connect2);
-          connect2 = void 0;
+        if (connect) {
+          provider.removeListener("connect", connect);
+          connect = void 0;
         }
         if (!accountsChanged) {
           accountsChanged = this.onAccountsChanged.bind(this);
@@ -896,9 +681,9 @@ function injected(parameters = {}) {
           chainChanged = this.onChainChanged.bind(this);
           provider.on("chainChanged", chainChanged);
         }
-        if (!disconnect2) {
-          disconnect2 = this.onDisconnect.bind(this);
-          provider.on("disconnect", disconnect2);
+        if (!disconnect) {
+          disconnect = this.onDisconnect.bind(this);
+          provider.on("disconnect", disconnect);
         }
         let currentChainId = await this.getChainId();
         if (chainId && currentChainId !== chainId) {
@@ -934,13 +719,13 @@ function injected(parameters = {}) {
         provider.removeListener("chainChanged", chainChanged);
         chainChanged = void 0;
       }
-      if (disconnect2) {
-        provider.removeListener("disconnect", disconnect2);
-        disconnect2 = void 0;
+      if (disconnect) {
+        provider.removeListener("disconnect", disconnect);
+        disconnect = void 0;
       }
-      if (!connect2) {
-        connect2 = this.onConnect.bind(this);
-        provider.on("connect", connect2);
+      if (!connect) {
+        connect = this.onConnect.bind(this);
+        provider.on("connect", connect);
       }
       try {
         await withTimeout(() => (
@@ -1136,9 +921,9 @@ function injected(parameters = {}) {
       config.emitter.emit("connect", { accounts, chainId });
       const provider = await this.getProvider();
       if (provider) {
-        if (connect2) {
-          provider.removeListener("connect", connect2);
-          connect2 = void 0;
+        if (connect) {
+          provider.removeListener("connect", connect);
+          connect = void 0;
         }
         if (!accountsChanged) {
           accountsChanged = this.onAccountsChanged.bind(this);
@@ -1148,9 +933,9 @@ function injected(parameters = {}) {
           chainChanged = this.onChainChanged.bind(this);
           provider.on("chainChanged", chainChanged);
         }
-        if (!disconnect2) {
-          disconnect2 = this.onDisconnect.bind(this);
-          provider.on("disconnect", disconnect2);
+        if (!disconnect) {
+          disconnect = this.onDisconnect.bind(this);
+          provider.on("disconnect", disconnect);
         }
       }
     },
@@ -1166,13 +951,13 @@ function injected(parameters = {}) {
           provider.removeListener("chainChanged", chainChanged);
           chainChanged = void 0;
         }
-        if (disconnect2) {
-          provider.removeListener("disconnect", disconnect2);
-          disconnect2 = void 0;
+        if (disconnect) {
+          provider.removeListener("disconnect", disconnect);
+          disconnect = void 0;
         }
-        if (!connect2) {
-          connect2 = this.onConnect.bind(this);
-          provider.on("connect", connect2);
+        if (!connect) {
+          connect = this.onConnect.bind(this);
+          provider.on("connect", connect);
         }
       }
     }
@@ -1248,248 +1033,6 @@ function findProvider(window2, select) {
   if (ethereum && isProvider(ethereum))
     return ethereum;
   return void 0;
-}
-mock.type = "mock";
-function mock(parameters) {
-  const transactionCache = /* @__PURE__ */ new Map();
-  const features = parameters.features ?? { defaultConnected: false };
-  let connected = features.defaultConnected;
-  let connectedChainId;
-  return createConnector((config) => ({
-    id: "mock",
-    name: "Mock Connector",
-    type: mock.type,
-    async setup() {
-      connectedChainId = config.chains[0].id;
-    },
-    async connect({ chainId, withCapabilities } = {}) {
-      if (features.connectError) {
-        if (typeof features.connectError === "boolean")
-          throw new UserRejectedRequestError(new Error("Failed to connect."));
-        throw features.connectError;
-      }
-      const provider = await this.getProvider();
-      const accounts = await provider.request({
-        method: "eth_requestAccounts"
-      });
-      let currentChainId = await this.getChainId();
-      if (chainId && currentChainId !== chainId) {
-        const chain = await this.switchChain({ chainId });
-        currentChainId = chain.id;
-      }
-      connected = true;
-      return {
-        accounts: withCapabilities ? accounts.map((x) => ({
-          address: getAddress(x),
-          capabilities: { foo: { bar: x } }
-        })) : accounts.map((x) => getAddress(x)),
-        chainId: currentChainId
-      };
-    },
-    async disconnect() {
-      connected = false;
-    },
-    async getAccounts() {
-      if (!connected)
-        throw new ConnectorNotConnectedError();
-      const provider = await this.getProvider();
-      const accounts = await provider.request({ method: "eth_accounts" });
-      return accounts.map((x) => getAddress(x));
-    },
-    async getChainId() {
-      const provider = await this.getProvider();
-      const hexChainId = await provider.request({ method: "eth_chainId" });
-      return fromHex(hexChainId, "number");
-    },
-    async isAuthorized() {
-      if (!features.reconnect)
-        return false;
-      if (!connected)
-        return false;
-      const accounts = await this.getAccounts();
-      return !!accounts.length;
-    },
-    async switchChain({ chainId }) {
-      const provider = await this.getProvider();
-      const chain = config.chains.find((x) => x.id === chainId);
-      if (!chain)
-        throw new SwitchChainError(new ChainNotConfiguredError());
-      await provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: numberToHex(chainId) }]
-      });
-      return chain;
-    },
-    onAccountsChanged(accounts) {
-      if (accounts.length === 0)
-        this.onDisconnect();
-      else
-        config.emitter.emit("change", {
-          accounts: accounts.map((x) => getAddress(x))
-        });
-    },
-    onChainChanged(chain) {
-      const chainId = Number(chain);
-      config.emitter.emit("change", { chainId });
-    },
-    async onDisconnect(_error) {
-      config.emitter.emit("disconnect");
-      connected = false;
-    },
-    async getProvider({ chainId } = {}) {
-      const chain = config.chains.find((x) => x.id === chainId) ?? config.chains[0];
-      const url = chain.rpcUrls.default.http[0];
-      const request = async ({ method, params }) => {
-        if (method === "eth_chainId")
-          return numberToHex(connectedChainId);
-        if (method === "eth_accounts")
-          return parameters.accounts;
-        if (method === "eth_requestAccounts")
-          return parameters.accounts;
-        if (method === "eth_signTypedData_v4") {
-          if (features.signTypedDataError) {
-            if (typeof features.signTypedDataError === "boolean")
-              throw new UserRejectedRequestError(new Error("Failed to sign typed data."));
-            throw features.signTypedDataError;
-          }
-        }
-        if (method === "wallet_switchEthereumChain") {
-          if (features.switchChainError) {
-            if (typeof features.switchChainError === "boolean")
-              throw new UserRejectedRequestError(new Error("Failed to switch chain."));
-            throw features.switchChainError;
-          }
-          connectedChainId = fromHex(params[0].chainId, "number");
-          this.onChainChanged(connectedChainId.toString());
-          return;
-        }
-        if (method === "wallet_watchAsset") {
-          if (features.watchAssetError) {
-            if (typeof features.watchAssetError === "boolean")
-              throw new UserRejectedRequestError(new Error("Failed to switch chain."));
-            throw features.watchAssetError;
-          }
-          return connected;
-        }
-        if (method === "wallet_getCapabilities")
-          return {
-            "0x2105": {
-              paymasterService: {
-                supported: params[0] === "0x95132632579b073D12a6673e18Ab05777a6B86f8"
-              },
-              sessionKeys: {
-                supported: true
-              }
-            },
-            "0x14A34": {
-              paymasterService: {
-                supported: params[0] === "0x95132632579b073D12a6673e18Ab05777a6B86f8"
-              }
-            }
-          };
-        if (method === "wallet_sendCalls") {
-          const hashes = [];
-          const calls = params[0].calls;
-          const from = params[0].from;
-          for (const call2 of calls) {
-            const { result: result2, error: error2 } = await rpc.http(url, {
-              body: {
-                method: "eth_sendTransaction",
-                params: [
-                  {
-                    ...call2,
-                    ...typeof from !== "undefined" ? { from } : {}
-                  }
-                ]
-              }
-            });
-            if (error2)
-              throw new RpcRequestError({
-                body: { method, params },
-                error: error2,
-                url
-              });
-            hashes.push(result2);
-          }
-          const id = keccak256(stringToHex(JSON.stringify(calls)));
-          transactionCache.set(id, hashes);
-          return { id };
-        }
-        if (method === "wallet_getCallsStatus") {
-          const hashes = transactionCache.get(params[0]);
-          if (!hashes)
-            return {
-              atomic: false,
-              chainId: "0x1",
-              id: params[0],
-              status: 100,
-              receipts: [],
-              version: "2.0.0"
-            };
-          const receipts = await Promise.all(hashes.map(async (hash) => {
-            const { result: result2, error: error2 } = await rpc.http(url, {
-              body: {
-                method: "eth_getTransactionReceipt",
-                params: [hash],
-                id: 0
-              }
-            });
-            if (error2)
-              throw new RpcRequestError({
-                body: { method, params },
-                error: error2,
-                url
-              });
-            if (!result2)
-              return null;
-            return {
-              blockHash: result2.blockHash,
-              blockNumber: result2.blockNumber,
-              gasUsed: result2.gasUsed,
-              logs: result2.logs,
-              status: result2.status,
-              transactionHash: result2.transactionHash
-            };
-          }));
-          const receipts_ = receipts.filter((x) => x !== null);
-          if (receipts_.length === 0)
-            return {
-              atomic: false,
-              chainId: "0x1",
-              id: params[0],
-              status: 100,
-              receipts: [],
-              version: "2.0.0"
-            };
-          return {
-            atomic: false,
-            chainId: "0x1",
-            id: params[0],
-            status: 200,
-            receipts: receipts_,
-            version: "2.0.0"
-          };
-        }
-        if (method === "wallet_showCallsStatus")
-          return;
-        if (method === "personal_sign") {
-          if (features.signMessageError) {
-            if (typeof features.signMessageError === "boolean")
-              throw new UserRejectedRequestError(new Error("Failed to sign message."));
-            throw features.signMessageError;
-          }
-          method = "eth_sign";
-          params = [params[1], params[0]];
-        }
-        const body = { method, params };
-        const { error, result } = await rpc.http(url, { body });
-        if (error)
-          throw new RpcRequestError({ body, error, url });
-        return result;
-      };
-      return custom({ request })({ retryCount: 0 });
-    }
-  }));
 }
 class Emitter {
   constructor(uid2) {
@@ -1706,7 +1249,7 @@ function createConfig(parameters) {
       uid: emitter.uid
     };
     rdns = connector.rdns;
-    emitter.on("connect", connect2);
+    emitter.on("connect", connect);
     connector.setup?.();
     return connector;
   }
@@ -1874,7 +1417,7 @@ function createConfig(parameters) {
       };
     });
   }
-  function connect2(data) {
+  function connect(data) {
     if (store.getState().status === "connecting" || store.getState().status === "reconnecting")
       return;
     store.setState((x) => {
@@ -1886,7 +1429,7 @@ function createConfig(parameters) {
       if (!connector.emitter.listenerCount("change"))
         connector.emitter.on("change", change);
       if (!connector.emitter.listenerCount("disconnect"))
-        connector.emitter.on("disconnect", disconnect2);
+        connector.emitter.on("disconnect", disconnect);
       return {
         ...x,
         connections: new Map(x.connections).set(data.uid, {
@@ -1899,7 +1442,7 @@ function createConfig(parameters) {
       };
     });
   }
-  function disconnect2(data) {
+  function disconnect(data) {
     store.setState((x) => {
       const connection = x.connections.get(data.uid);
       if (connection) {
@@ -1907,9 +1450,9 @@ function createConfig(parameters) {
         if (connector.emitter.listenerCount("change"))
           connection.connector.emitter.off("change", change);
         if (connector.emitter.listenerCount("disconnect"))
-          connection.connector.emitter.off("disconnect", disconnect2);
+          connection.connector.emitter.off("disconnect", disconnect);
         if (!connector.emitter.listenerCount("connect"))
-          connection.connector.emitter.on("connect", connect2);
+          connection.connector.emitter.on("connect", connect);
       }
       x.connections.delete(data.uid);
       if (x.connections.size === 0)
@@ -2002,7 +1545,7 @@ function createConfig(parameters) {
           return connectors.subscribe(listener);
         }
       },
-      events: { change, connect: connect2, disconnect: disconnect2 }
+      events: { change, connect, disconnect }
     }
   };
 }
@@ -2052,15 +1595,6 @@ function hydrate(config, parameters) {
         }));
     }
   };
-}
-function extractRpcUrls(parameters) {
-  const { chain } = parameters;
-  const fallbackUrl = chain.rpcUrls.default.http[0];
-  if (!parameters.transports)
-    return [fallbackUrl];
-  const transport = parameters.transports?.[chain.id]?.({ chain });
-  const transports = transport?.value?.transports || [transport];
-  return transports.map(({ value }) => value?.url || fallbackUrl);
 }
 function structuralSharing(oldData, newData) {
   return replaceEqualDeep(oldData, newData);
@@ -2282,240 +1816,8 @@ function watchChains(config, parameters) {
     onChange(chains, prevChains);
   });
 }
-const tempoWalletIcon = 'data:image/svg+xml,<svg width="269" height="269" viewBox="0 0 269 269" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="269" height="269" fill="black"/><path d="M123.273 190.794H93.445L121.09 105.318H85.7334L93.445 80.2642H191.95L184.238 105.318H150.773L123.273 190.794Z" fill="white"/></svg>';
-function tempoWallet(parameters = {}) {
-  const { dialog: dialogOption, host, icon = tempoWalletIcon, name, rdns, theme, ...providerParameters } = parameters;
-  return _setup({
-    createAdapter(accounts) {
-      return accounts.dialog({
-        dialog: dialogOption,
-        host,
-        icon,
-        name,
-        rdns,
-        theme
-      });
-    },
-    icon,
-    id: rdns ?? "xyz.tempo",
-    name: name ?? "Tempo Wallet",
-    providerParameters,
-    rdns: rdns ?? "xyz.tempo",
-    type: "injected"
-  });
-}
-function _setup(parameters) {
-  return createConnector((config) => {
-    const chains = config.chains;
-    let providerPromise;
-    let accountsChanged;
-    let chainChanged;
-    let connect2;
-    let disconnect2;
-    async function getAccountsModule() {
-      return await import("../_chunks/core_false.mjs").catch(() => {
-        throw new Error('dependency "accounts" not found');
-      });
-    }
-    async function getProvider() {
-      providerPromise ??= (async () => {
-        const accounts = await getAccountsModule();
-        return accounts.Provider.create({
-          ...parameters.providerParameters,
-          adapter: parameters.createAdapter(accounts),
-          chains: config.chains,
-          transports: config.transports
-        });
-      })();
-      return await providerPromise;
-    }
-    return {
-      icon: parameters.icon,
-      id: parameters.id,
-      name: parameters.name,
-      rdns: parameters.rdns,
-      type: parameters.type,
-      async connect(connectParameters = {}) {
-        const { chainId, isReconnecting: isReconnecting2, withCapabilities } = connectParameters;
-        const capabilities = "capabilities" in connectParameters ? connectParameters.capabilities : void 0;
-        let accounts = [];
-        let currentChainId;
-        if (isReconnecting2) {
-          accounts = await this.getAccounts().then((accounts2) => accounts2.map((address) => ({ address, capabilities: {} }))).catch(() => []);
-        }
-        try {
-          if (!accounts.length && !isReconnecting2) {
-            const provider2 = await getProvider();
-            const response = await provider2.request({
-              method: "wallet_connect",
-              params: [
-                {
-                  ...chainId ? { chainId } : {},
-                  ...capabilities ? { capabilities } : {}
-                }
-              ]
-            });
-            accounts = response.accounts;
-          }
-          currentChainId ??= await this.getChainId();
-          if (!currentChainId)
-            throw new ChainNotConfiguredError();
-          const provider = await getProvider();
-          if (connect2) {
-            provider.removeListener("connect", connect2);
-            connect2 = void 0;
-          }
-          if (!accountsChanged) {
-            accountsChanged = this.onAccountsChanged.bind(this);
-            provider.on("accountsChanged", accountsChanged);
-          }
-          if (!chainChanged) {
-            chainChanged = this.onChainChanged.bind(this);
-            provider.on("chainChanged", chainChanged);
-          }
-          if (!disconnect2) {
-            disconnect2 = this.onDisconnect.bind(this);
-            provider.on("disconnect", disconnect2);
-          }
-          return {
-            accounts: withCapabilities ? accounts : accounts.map((account) => account.address),
-            chainId: currentChainId
-          };
-        } catch (error) {
-          const rpcError = error;
-          if (rpcError.code === UserRejectedRequestError.code)
-            throw new UserRejectedRequestError(rpcError);
-          throw rpcError;
-        }
-      },
-      async disconnect() {
-        const provider = await getProvider();
-        if (chainChanged) {
-          provider.removeListener("chainChanged", chainChanged);
-          chainChanged = void 0;
-        }
-        if (disconnect2) {
-          provider.removeListener("disconnect", disconnect2);
-          disconnect2 = void 0;
-        }
-        if (!connect2) {
-          connect2 = this.onConnect?.bind(this);
-          if (connect2)
-            provider.on("connect", connect2);
-        }
-        await provider.request({ method: "wallet_disconnect" });
-      },
-      async getAccounts() {
-        const provider = await getProvider();
-        return await provider.request({ method: "eth_accounts" });
-      },
-      async getChainId() {
-        const provider = await getProvider();
-        return Number(await provider.request({ method: "eth_chainId" }));
-      },
-      async getClient({ chainId } = {}) {
-        const provider = await getProvider();
-        const { address } = provider.getAccount({ accessKey: false });
-        return Object.assign(provider.getClient({ chainId }), {
-          account: parseAccount(address)
-        });
-      },
-      async getProvider() {
-        return await getProvider();
-      },
-      async isAuthorized() {
-        try {
-          const accounts = await withRetry(() => this.getAccounts());
-          return !!accounts.length;
-        } catch {
-          return false;
-        }
-      },
-      onAccountsChanged(accounts) {
-        config.emitter.emit("change", {
-          accounts
-        });
-      },
-      onChainChanged(chain) {
-        config.emitter.emit("change", { chainId: Number(chain) });
-      },
-      async onConnect(connectInfo) {
-        const accounts = await this.getAccounts();
-        if (accounts.length === 0)
-          return;
-        const chainId = Number(connectInfo.chainId);
-        config.emitter.emit("connect", { accounts, chainId });
-        const provider = await getProvider();
-        if (connect2) {
-          provider.removeListener("connect", connect2);
-          connect2 = void 0;
-        }
-        if (!accountsChanged) {
-          accountsChanged = this.onAccountsChanged.bind(this);
-          provider.on("accountsChanged", accountsChanged);
-        }
-        if (!chainChanged) {
-          chainChanged = this.onChainChanged.bind(this);
-          provider.on("chainChanged", chainChanged);
-        }
-        if (!disconnect2) {
-          disconnect2 = this.onDisconnect.bind(this);
-          provider.on("disconnect", disconnect2);
-        }
-      },
-      async onDisconnect(_error) {
-        const provider = await getProvider();
-        config.emitter.emit("disconnect");
-        if (chainChanged) {
-          provider.removeListener("chainChanged", chainChanged);
-          chainChanged = void 0;
-        }
-        if (disconnect2) {
-          provider.removeListener("disconnect", disconnect2);
-          disconnect2 = void 0;
-        }
-        if (!connect2) {
-          connect2 = this.onConnect?.bind(this);
-          if (connect2)
-            provider.on("connect", connect2);
-        }
-      },
-      async setup() {
-        if (!connect2) {
-          const provider = await getProvider();
-          connect2 = this.onConnect?.bind(this);
-          if (connect2)
-            provider.on("connect", connect2);
-        }
-      },
-      async switchChain({ chainId }) {
-        const chain = chains.find((chain2) => chain2.id === chainId);
-        if (!chain)
-          throw new SwitchChainError(new ChainNotConfiguredError());
-        const provider = await getProvider();
-        await provider.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: numberToHex(chainId) }]
-        });
-        return chain;
-      }
-    };
-  });
-}
 export {
-  watchConnectors as A,
   BaseError$1 as B,
-  ChainNotConfiguredError as C,
-  reconnect as D,
-  getConnections as E,
-  connect as F,
-  switchChain as G,
-  getBalance as H,
-  disconnect as I,
-  extractRpcUrls as J,
-  mock as K,
-  tempoWallet as L,
-  ProviderNotFoundError as P,
   hashFn as a,
   getBalanceQueryOptions as b,
   getConnection as c,
@@ -2528,18 +1830,8 @@ export {
   readContractsQueryOptions as j,
   waitForTransactionReceiptQueryOptions as k,
   writeContractMutationOptions as l,
-  createConnector as m,
-  createConfig as n,
-  watchPendingTransactions as o,
-  watchConnections as p,
-  injected as q,
+  createConfig as m,
   readContractQueryOptions as r,
   switchChainMutationOptions as s,
-  signMessage as t,
-  prepareTransactionRequest as u,
-  sendTransaction as v,
-  watchChainId as w,
-  waitForTransactionReceipt as x,
-  writeContract as y,
-  estimateGas as z
+  watchChainId as w
 };

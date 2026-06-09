@@ -122,7 +122,7 @@ function Staking() {
   const { data: nativeBal } = useBalance({
     address,
     chainId: monadMainnet.id,
-    query: { enabled: !!address, refetchInterval: 12_000 },
+    query: { enabled: !!address && typeof window !== "undefined", refetchInterval: 12_000 },
   });
 
   // ========== BATCHED ON-CHAIN READS ==========
@@ -162,7 +162,7 @@ function Staking() {
           { address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "vaultWallet" },
         ]
       : [],
-    query: { enabled: live, refetchInterval: 15_000 },
+    query: { enabled: live && typeof window !== "undefined", refetchInterval: 15_000 },
   });
 
   const r = reads.data;

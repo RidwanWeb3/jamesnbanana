@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
 import {
   Outlet,
   Link,
@@ -15,6 +16,7 @@ import { Toaster } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import logo from "@/assets/logobanana.jpg?url";
+import { ssrWagmiConfig } from "@/lib/web3/ssrConfig";
 
 function NotFoundComponent() {
   return (
@@ -124,39 +126,31 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [Web3Wrapper, setWeb3Wrapper] = useState<React.FC<{ children: ReactNode }> | null>(null);
+  const [browserWagmiConfig, setBrowserWagmiConfig] = useState<any>(null);
 
+  // CLIENT-ONLY: Load the real wagmi config (with Reown AppKit) after mount.
+  // During SSR, we use ssrWagmiConfig which has no wallet connectors.
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    // Use a variable-based dynamic import that Nitro cannot statically analyze.
-    // Nitro's Rollup bundler cannot trace through string concatenation,
-    // so the entire CsrWeb3Provider + config.ts + Reown/AppKit tree
-    // is excluded from the SSR bundle.
-    const providerPath = "@/components/web3/CsrWeb3Provider";
-    import(providerPath).then((mod) => {
-      setWeb3Wrapper(() => mod.CsrWeb3Provider);
-    });
-
-    const configPath = "@/lib/web3/config";
-    import(configPath).then(({ initAppKit }) => {
+    import("@/lib/web3/config").then(({ wagmiConfig, initAppKit }) => {
+      setBrowserWagmiConfig(wagmiConfig);
       initAppKit();
     });
   }, []);
 
-  const content = (
-    <>
-      <Navbar />
-      <main className="min-h-screen">
-        <Outlet />
-      </main>
-      <Footer />
-    </>
-  );
+  // Use browser config if available, otherwise SSR config.
+  // This ensures WagmiProvider is always present so hooks don't throw.
+  const activeConfig = browserWagmiConfig ?? ssrWagmiConfig;
 
   return (
     <QueryClientProvider client={queryClient}>
-      {Web3Wrapper ? <Web3Wrapper>{content}</Web3Wrapper> : content}
+      <WagmiProvider config={activeConfig}>
+        <Navbar />
+        <main className="min-h-screen">
+          <Outlet />
+        </main>
+        <Footer />
+      </WagmiProvider>
       <Toaster richColors position="top-center" toastOptions={{ style: { borderRadius: 18, fontWeight: 700 } }} />
     </QueryClientProvider>
   );

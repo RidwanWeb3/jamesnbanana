@@ -165,6 +165,5 @@ function requireEventemitter3() {
 var eventemitter3Exports = requireEventemitter3();
 const EventEmitter = /* @__PURE__ */ getDefaultExportFromCjs(eventemitter3Exports);
 export {
-  EventEmitter as E,
-  requireEventemitter3 as r
+  EventEmitter as E
 };
