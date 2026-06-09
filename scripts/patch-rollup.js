@@ -1,9 +1,11 @@
 // scripts/patch-rollup.js
 // Patches rollup/dist/native.js to gracefully fall back to @rollup/wasm-node
-// when the platform-specific native binary is missing (e.g. running on Windows
-// but only the Linux binary is installed).
+// when the platform-specific native binary is missing or corrupt.
 //
-// This runs automatically after `npm install` via the postinstall script.
+// This runs automatically after every `npm install` via the postinstall script.
+// It handles the case where npm optionalDependencies resolution on one platform
+// doesn't install the native binary for another platform (e.g. Linux npm install
+// won't fetch the Windows win32-x64-msvc binary).
 
 const fs = require("fs");
 const path = require("path");
@@ -17,7 +19,7 @@ if (!fs.existsSync(nativePath)) {
 
 const content = fs.readFileSync(nativePath, "utf8");
 
-// Already patched
+// Already patched — idempotent
 if (content.includes("@rollup/wasm-node")) {
   process.exit(0);
 }

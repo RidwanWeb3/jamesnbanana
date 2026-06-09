@@ -1,114 +1,99 @@
-# Dependency Repair & SSR Fix Guide
+# Fix Guide — Windows Development Environment
 
-## TASK #1: Rollup Windows Native Binary Fix
+## Issue 1: `Cannot find module @rollup/rollup-win32-x64-msvc`
 
-### Root Cause
-`node_modules/@rollup/` only contains `rollup-linux-x64-gnu` (WSL).
-When running from Windows (CMD/PowerShell), Vite needs `@rollup/rollup-win32-x64-msvc`.
-This is an optional dependency that npm sometimes skips due to a known npm bug.
+### What Happened
+npm optional dependencies are resolved per-platform. When `npm install` runs on WSL/Linux,
+it fetches `rollup-linux-x64-gnu` but skips `rollup-win32-x64-msvc`. When you then run
+`npm run dev` from Windows PowerShell, Node.js needs the Windows binary which doesn't exist.
 
-### Fix Commands
+### Fix (run in Windows PowerShell)
+```powershell
+cd C:\Users\user\james-banana
+npm install
+```
 
-#### Windows PowerShell:
+The `postinstall` script will automatically patch Rollup to fall back to WASM if the
+native binary is missing. The repo now also includes `@rollup/wasm-node` as a devDependency
+and `@rollup/rollup-win32-x64-msvc` in optionalDependencies.
+
+### If the error persists, do a clean reinstall:
 ```powershell
 cd C:\Users\user\james-banana
 Remove-Item -Recurse -Force node_modules
 Remove-Item -Force package-lock.json
-npm install --include=optional
+npm install
+npm run dev
 ```
 
-#### Windows CMD:
-```cmd
+---
+
+## Issue 2: Vercel SSR 500 Error
+
+### What Happened
+`Web3Provider.tsx` imported `initAppKit` from `@/lib/web3/config` at module level.
+This triggered loading of `@reown/appkit-adapter-wagmi` which contains `window` references.
+During SSR, `window` is undefined → crash. The real error was hidden by h3's error swallowing.
+
+### Fix (already applied in source)
+- `Web3Provider.tsx` no longer imports `initAppKit`
+- `__root.tsx` dynamically imports `initAppKit` inside `useEffect` with `typeof window` guard
+- `public/favicon.ico` added (was missing, causing favicon requests to hit SSR)
+
+### Verify after deploy
+- Root URL returns 200
+- /staking returns 200
+- /favicon.ico returns 200
+- No "h3 swallowed SSR error" in Vercel logs
+
+---
+
+## Issue 3: nitro version mismatch (ERESOLVE)
+
+### What Happened
+`@lovable.dev/vite-tanstack-config@2.3.2` requires `nitro >=3.0.260603-beta` (peerOptional).
+Old `node_modules` had `nitro@3.0.260429-beta`, causing ERESOLVE on `npm install`.
+
+### Fix
+The `package.json` now pins `nitro: "3.0.260603-beta"` in devDependencies.
+A clean `npm install` will fetch the correct version.
+
+```powershell
 cd C:\Users\user\james-banana
-rmdir /s /q node_modules
-del package-lock.json
-npm install --include=optional
-```
-
-#### Git Bash:
-```bash
-cd /mnt/c/Users/user/james-banana
-rm -rf node_modules package-lock.json
-npm install --include=optional
-```
-
-### Verification:
-```bash
-ls node_modules/@rollup/
-# Should show BOTH:
-#   rollup-linux-x64-gnu
-#   rollup-win32-x64-msvc
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force package-lock.json
+npm install
 ```
 
 ---
 
-## TASK #2: SSR Crash Fix
+## Quick Start (Windows PowerShell)
 
-### Root Cause
-`Web3Provider.tsx` (line 7, old version) imported `initAppKit` from `@/lib/web3/config`.
-Importing `config.ts` triggers module-level import of `@reown/appkit-adapter-wagmi`,
-which contains browser-only code (`window` references) that crashes during SSR
-module resolution — BEFORE `useEffect` ever runs.
-
-Error seen in Vercel logs:
-```
-h3 swallowed SSR error: {"status":500,"unhandled":true,"message":"HTTPError"}
+```powershell
+cd C:\Users\user\james-banana
+npm install
+npm run dev
 ```
 
-### Fix Applied
-
-#### File: src/components/web3/Web3Provider.tsx
-REMOVED: `import { initAppKit } from "@/lib/web3/config"` and `useEffect` calling it.
-REASON: This import chain crashes SSR.
-
-#### File: src/routes/__root.tsx
-ADDED: Dynamic import of initAppKit inside useEffect:
-```tsx
-useEffect(() => {
-  if (typeof window === "undefined") return;
-  import("@/lib/web3/config").then(({ initAppKit }) => {
-    initAppKit();
-  });
-}, []);
+Expected output:
 ```
-REASON: Dynamic import only executes in browser, never during SSR.
+  VITE v7.3.5  ready in XXX ms
 
-#### File: src/lib/web3/config.ts
-KEPT: `initAppKit()` guarded with `typeof window !== "undefined"` check inside function body.
+  ➜  Local:   http://localhost:8080/
+```
 
-### Secondary Fix: Missing Favicon
-`public/` directory had no `favicon.ico` or `favicon.png`.
-Browser requests to `/favicon.ico` hit the SSR handler → crash.
-FIX: Copied `src/assets/logobanana.jpg` to `public/favicon.ico`.
+## Environment Variables
 
----
+Create a `.env` file in `C:\Users\user\james-banana\` with:
+```
+VITE_REOWN_PROJECT_ID=14a6012ffc42d98b14cc3637e1c3c924
+```
 
-## ENVIRONMENT VARIABLES
+## Deploy to Vercel
 
-Required in Vercel Dashboard → Project Settings → Environment Variables:
+```powershell
+git pull origin main
+git push origin main
+```
 
-| Variable | Value |
-|---|---|
-| `VITE_REOWN_PROJECT_ID` | `14a6012ffc42d98b14cc3637e1c3c924` |
-
-Note: Only variables prefixed with `VITE_` are exposed to the client by Vite.
-
----
-
-## VERIFICATION CHECKLIST
-
-### Local Dev:
-- [ ] `npm install --include=optional` completes without errors
-- [ ] `node_modules/@rollup/rollup-win32-x64-msvc` directory exists
-- [ ] `npm run dev` starts without crash
-- [ ] http://localhost:8080 loads (no 500)
-- [ ] http://localhost:8080/staking loads (no 500)
-- [ ] http://localhost:8080/favicon.ico returns 200
-
-### Production (after deploy):
-- [ ] `npm run build` completes without OOM (uses 4GB heap)
-- [ ] `.vercel/output/functions/__server.func/index.mjs` exists
-- [ ] Root URL returns 200
-- [ ] /staking returns 200
-- [ ] /favicon.ico returns 200 (not 500)
-- [ ] No "h3 swallowed SSR error" in Vercel logs
+Or trigger a redeploy from the Vercel dashboard. The latest commit has all fixes.
