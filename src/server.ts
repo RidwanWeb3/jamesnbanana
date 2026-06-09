@@ -43,15 +43,17 @@ export default {
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       // Log the REAL error with full stack trace
+      const errorStackRaw = error instanceof Error ? error.stack : undefined;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : "No stack trace";
+      const errorStack = errorStackRaw ?? "No stack trace";
       console.error("[server.ts] SSR crash:", errorMessage);
       console.error("[server.ts] Stack:", errorStack);
 
       // Return error page with debug info in development
       const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
+      const safeStack = errorStack.replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const debugInfo = isDev
-        ? `<pre style="text-align:left;max-width:600px;margin:1rem auto;padding:1rem;background:#fee;border:1px solid #fcc;border-radius:8px;font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-all"><strong>Error:</strong> ${errorMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}\n\n<strong>Stack:</strong> ${errorStack.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`
+        ? `<pre style="text-align:left;max-width:600px;margin:1rem auto;padding:1rem;background:#fee;border:1px solid #fcc;border-radius:8px;font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-all"><strong>Error:</strong> ${errorMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}\n\n<strong>Stack:</strong> ${safeStack}</pre>`
         : "";
 
       return new Response(

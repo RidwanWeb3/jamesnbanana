@@ -1,9 +1,13 @@
 // ---------------------------------------------------------------------------
 // web3/config.ts — Reown AppKit + Wagmi configuration
 //
-// SSR SAFETY: This module exports wagmiConfig (safe at module level) and
-// initAppKit() (must only run in browser). The initAppKit function is called
-// via dynamic import in __root.tsx useEffect, never during SSR.
+// SSR SAFETY: During SSR, the Vite "ssr-stub-reown" plugin replaces all @reown/*
+// modules with stubs. The stubs export Proxy objects that return undefined for
+// any property access. We guard all browser-only code with typeof window checks
+// and optional chaining.
+//
+// In the browser, this module loads normally and provides the real WagmiAdapter,
+// createAppKit, and wagmiConfig.
 // ---------------------------------------------------------------------------
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
@@ -16,21 +20,29 @@ export const projectId =
 const metadata = {
   name: "James Banana — Banana Vault",
   description: "Stake MON on Monad. Power the James Banana ecosystem.",
-  url: typeof window !== "undefined" ? window.location.origin : "https://jamesbanana.app",
+  url: typeof window !== "undefined" ? window.location.origin : "https://bananastaking.vercel.app",
   icons: ["/favicon.ico"],
 };
 
-export const wagmiAdapter = new WagmiAdapter({
-  networks: [monadMainnet],
-  projectId,
-  ssr: true,
-});
+// SSR-SAFE: During SSR, WagmiAdapter is a Proxy stub (not a real class).
+// The typeof window guard prevents instantiation during SSR.
+// The instanceof check ensures we only call the real constructor in the browser.
+const wagmiAdapter =
+  typeof window !== "undefined" && WagmiAdapter && typeof (WagmiAdapter as any) === "function" && (WagmiAdapter as any).prototype
+    ? new (WagmiAdapter as any)({
+        networks: [monadMainnet],
+        projectId,
+        ssr: true,
+      })
+    : null;
 
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
+// SSR-SAFE: wagmiConfig is undefined during SSR (wagmiAdapter is null).
+// It's only used in the browser via CsrWeb3Provider.
+export const wagmiConfig: any = wagmiAdapter?.wagmiConfig;
 
 let initialized = false;
 export function initAppKit() {
-  if (initialized || typeof window === "undefined") return;
+  if (initialized || typeof window === "undefined" || !wagmiAdapter || !createAppKit) return;
   initialized = true;
   createAppKit({
     adapters: [wagmiAdapter],

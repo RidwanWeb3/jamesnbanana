@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -15,7 +15,6 @@ import { Toaster } from "sonner";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import logo from "@/assets/logobanana.jpg?url";
-import { Web3Provider } from "@/components/web3/Web3Provider";
 
 function NotFoundComponent() {
   return (
@@ -125,27 +124,40 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [Web3Wrapper, setWeb3Wrapper] = useState<React.FC<{ children: ReactNode }> | null>(null);
 
-  // SSR-SAFE: initAppKit is dynamically imported ONLY in the browser.
-  // This prevents @reown/appkit-adapter-wagmi (which contains window references)
-  // from being loaded during SSR module resolution.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    import("@/lib/web3/config").then(({ initAppKit }) => {
+
+    // Use a variable-based dynamic import that Nitro cannot statically analyze.
+    // Nitro's Rollup bundler cannot trace through string concatenation,
+    // so the entire CsrWeb3Provider + config.ts + Reown/AppKit tree
+    // is excluded from the SSR bundle.
+    const providerPath = "@/components/web3/CsrWeb3Provider";
+    import(providerPath).then((mod) => {
+      setWeb3Wrapper(() => mod.CsrWeb3Provider);
+    });
+
+    const configPath = "@/lib/web3/config";
+    import(configPath).then(({ initAppKit }) => {
       initAppKit();
     });
   }, []);
 
+  const content = (
+    <>
+      <Navbar />
+      <main className="min-h-screen">
+        <Outlet />
+      </main>
+      <Footer />
+    </>
+  );
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Web3Provider>
-        <Navbar />
-        <main className="min-h-screen">
-          <Outlet />
-        </main>
-        <Footer />
-        <Toaster richColors position="top-center" toastOptions={{ style: { borderRadius: 18, fontWeight: 700 } }} />
-      </Web3Provider>
+      {Web3Wrapper ? <Web3Wrapper>{content}</Web3Wrapper> : content}
+      <Toaster richColors position="top-center" toastOptions={{ style: { borderRadius: 18, fontWeight: 700 } }} />
     </QueryClientProvider>
   );
 }
