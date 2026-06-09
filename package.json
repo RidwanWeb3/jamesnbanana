@@ -9,7 +9,8 @@
     "build:dev": "NODE_OPTIONS='--max-old-space-size=4096' vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "node scripts/patch-rollup.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -87,6 +88,10 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "@rollup/wasm-node": "4.61.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.61.1"
   }
 }

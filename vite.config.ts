@@ -8,14 +8,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
     server: { entry: "server" },
   },
-  // CRITICAL: Force-enable Nitro with Vercel preset.
-  // Without this, @lovable.dev/vite-tanstack-config skips the nitro deploy plugin
-  // when not running inside a Lovable sandbox, which means Vercel gets raw Vite SSR
-  // output with no serverless function → every route returns 404.
+  // Force-enable Nitro with Vercel preset for production SSR.
   nitro: {
     preset: "vercel",
   },
