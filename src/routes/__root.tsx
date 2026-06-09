@@ -126,6 +126,16 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // SSR-SAFE: initAppKit is dynamically imported ONLY in the browser.
+  // This prevents @reown/appkit-adapter-wagmi (which contains window references)
+  // from being loaded during SSR module resolution.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    import("@/lib/web3/config").then(({ initAppKit }) => {
+      initAppKit();
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <Web3Provider>

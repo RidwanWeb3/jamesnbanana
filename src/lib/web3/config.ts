@@ -1,12 +1,17 @@
+// ---------------------------------------------------------------------------
+// web3/config.ts — Reown AppKit + Wagmi configuration
+//
+// SSR SAFETY: This module exports wagmiConfig (safe at module level) and
+// initAppKit() (must only run in browser). The initAppKit function is called
+// via dynamic import in __root.tsx useEffect, never during SSR.
+// ---------------------------------------------------------------------------
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { monadMainnet } from "./chain";
 
-// Public, safe to ship. Replace with your own Reown Cloud projectId.
-// https://cloud.reown.com  →  create project  →  copy Project ID
 export const projectId =
   (import.meta.env.VITE_REOWN_PROJECT_ID as string | undefined) ||
-  "b56e18d47c72ab683b10814fe9495694"; // demo fallback
+  "b56e18d47c72ab683b10814fe9495694";
 
 const metadata = {
   name: "James Banana — Banana Vault",
