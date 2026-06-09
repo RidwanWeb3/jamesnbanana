@@ -1,47 +1,99 @@
-// scripts/patch-rollup.js
-// Patches rollup/dist/native.js to gracefully fall back to @rollup/wasm-node
-// when the platform-specific native binary is missing or corrupt.
+// scripts/patch-rollup.cjs
+// Runs after npm install to ensure cross-platform native binaries exist.
 //
-// This runs automatically after every `npm install` via the postinstall script.
-// It handles the case where npm optionalDependencies resolution on one platform
-// doesn't install the native binary for another platform (e.g. Linux npm install
-// won't fetch the Windows win32-x64-msvc binary).
+// Problem: npm optional dependencies are resolved per-platform. When you run
+// `npm install` on Windows, npm fetches Windows binaries but removes Linux ones,
+// and vice versa. Since this repo is developed on both WSL/Linux and Windows
+// (same /mnt/c/ path), we need BOTH sets of binaries present.
+//
+// Solution: .npmrc sets optional=false. This script manually installs missing
+// native binaries using npm pack + tar, which works regardless of platform.
 
+const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const nativePath = path.join(__dirname, "..", "node_modules", "rollup", "dist", "native.js");
+/**
+ * Ensure a native binary package is installed in node_modules.
+ * Uses npm pack + tar to extract directly, bypassing npm's platform filtering.
+ */
+function ensurePackage(scope, name, version, expectedFile) {
+  const dir = scope
+    ? path.join(__dirname, "..", "node_modules", scope, name)
+    : path.join(__dirname, "..", "node_modules", name);
 
-if (!fs.existsSync(nativePath)) {
-  console.warn("[patch-rollup] native.js not found, skipping");
-  process.exit(0);
+  if (fs.existsSync(expectedFile)) {
+    return; // Already present
+  }
+
+  const pkgName = scope ? `${scope}/${name}` : name;
+  console.log(`[patch] Installing ${pkgName}@${version}...`);
+
+  try {
+    const parentDir = path.join(dir, "..");
+    fs.mkdirSync(parentDir, { recursive: true });
+    execSync(`npm pack ${pkgName}@${version}`, { cwd: parentDir, stdio: "pipe" });
+    const tgz = fs.readdirSync(parentDir).find(f =>
+      f.startsWith(name.replace("/", "-")) && f.endsWith(".tgz") && !f.includes(".")
+    );
+    // More precise tgz matching
+    const tgzFile = fs.readdirSync(parentDir).find(f => {
+      const base = f.replace(".tgz", "");
+      return base.startsWith(name.replace("/", "-")) && f.endsWith(".tgz") && !fs.statSync(path.join(parentDir, f)).isDirectory();
+    });
+    if (tgzFile) {
+      fs.mkdirSync(dir, { recursive: true });
+      execSync(`tar xzf "${tgzFile}" -C "${dir}" --strip-components=1`, { cwd: parentDir });
+      fs.unlinkSync(path.join(parentDir, tgzFile));
+      console.log(`[patch] Installed ${pkgName}`);
+    }
+  } catch (err) {
+    console.warn(`[patch] Failed to install ${pkgName}: ${err.message}`);
+  }
 }
 
-const content = fs.readFileSync(nativePath, "utf8");
+const platform = process.platform;
 
-// Already patched — idempotent
-if (content.includes("@rollup/wasm-node")) {
-  process.exit(0);
+// --- Rollup native binaries ---
+// Always install both Linux and Windows so the repo works from WSL and PowerShell.
+ensurePackage("@rollup", "rollup-linux-x64-gnu", "4.61.1",
+  path.join(__dirname, "..", "node_modules", "@rollup", "rollup-linux-x64-gnu", "rollup.linux-x64-gnu.node"));
+ensurePackage("@rollup", "rollup-win32-x64-msvc", "4.61.1",
+  path.join(__dirname, "..", "node_modules", "@rollup", "rollup-win32-x64-msvc", "rollup.win32-x64-msvc.node"));
+
+// --- esbuild ---
+// esbuild uses a different package structure (@esbuild/<platform>-<arch>)
+const esbuildVersion = "0.27.7";
+if (platform === "linux") {
+  // On Linux, ensure Linux esbuild is present (Windows install may have removed it)
+  if (!fs.existsSync(path.join(__dirname, "..", "node_modules", "@esbuild", "linux-x64", "bin", "esbuild"))) {
+    const parentDir = path.join(__dirname, "..", "node_modules", "@esbuild");
+    console.log(`[patch] Installing @esbuild/linux-x64@${esbuildVersion}...`);
+    try {
+      execSync(`npm pack @esbuild/linux-x64@${esbuildVersion}`, { cwd: parentDir, stdio: "pipe" });
+      const tgz = fs.readdirSync(parentDir).find(f => f.startsWith("esbuild-linux-x64-") && f.endsWith(".tgz"));
+      if (tgz) {
+        fs.mkdirSync(path.join(parentDir, "linux-x64"), { recursive: true });
+        execSync(`tar xzf "${tgz}" -C "${parentDir}/linux-x64" --strip-components=1`, { cwd: parentDir });
+        fs.unlinkSync(path.join(parentDir, tgz));
+        console.log("[patch] Installed @esbuild/linux-x64");
+      }
+    } catch (err) {
+      console.warn(`[patch] Failed: ${err.message}`);
+    }
+  }
 }
 
-const original = `const { parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = requireWithFriendlyError(
-\texistsSync(path.join(__dirname, localName)) ? localName : \`@rollup/rollup-\${packageBase}\`
-);`;
+// --- lightningcss ---
+ensurePackage(null, "lightningcss-linux-x64-gnu", "1.30.2",
+  path.join(__dirname, "..", "node_modules", "lightningcss-linux-x64-gnu", "lightningcss.linux-x64-gnu.node"));
 
-const patched = `let parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16;
-try {
-\t({ parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = requireWithFriendlyError(
-\t\texistsSync(path.join(__dirname, localName)) ? localName : \`@rollup/rollup-\${packageBase}\`,
-\t));
-} catch {
-\tconst wasm = require("@rollup/wasm-node");
-\t({ parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = wasm);
-}`;
+// --- tailwindcss oxide ---
+ensurePackage("@tailwindcss", "oxide-linux-x64-gnu", "4.3.0",
+  path.join(__dirname, "..", "node_modules", "@tailwindcss", "oxide-linux-x64-gnu", "tailwindcss-oxide.linux-x64-gnu.node"));
 
-if (!content.includes(original)) {
-  console.warn("[patch-rollup] Could not find target code in native.js, skipping");
-  process.exit(0);
-}
+// --- rolldown ---
+ensurePackage("@rolldown", "binding-linux-x64-gnu", "1.0.0-beta.38",
+  path.join(__dirname, "..", "node_modules", "@rolldown", "binding-linux-x64-gnu", "rolldown-binding.linux-x64-gnu.node"));
 
-fs.writeFileSync(nativePath, content.replace(original, patched));
-console.log("[patch-rollup] Patched rollup/dist/native.js for cross-platform WASM fallback");
+console.log("[patch] Done");

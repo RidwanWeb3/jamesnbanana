@@ -13,5 +13,14 @@ export default defineConfig({
   // Force-enable Nitro with Vercel preset for production SSR.
   nitro: {
     preset: "vercel",
+    // Copy public/ files to the static output directory.
+    // Without this, favicon.ico and other public assets are not included
+    // in the Vercel deployment, causing 500 errors when browsers request them.
+    publicAssets: [
+      {
+        dir: "public",
+        baseURL: "/",
+      },
+    ],
   },
 });

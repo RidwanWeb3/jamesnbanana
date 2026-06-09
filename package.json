@@ -90,8 +90,5 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
     "@rollup/wasm-node": "4.61.1"
-  },
-  "optionalDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.61.1"
   }
 }

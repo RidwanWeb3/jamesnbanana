@@ -42,12 +42,25 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
-      // Log the REAL error, not just the h3-wrapped one
-      console.error("[server.ts] Unhandled error:", error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      // Log the REAL error with full stack trace
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : "No stack trace";
+      console.error("[server.ts] SSR crash:", errorMessage);
+      console.error("[server.ts] Stack:", errorStack);
+
+      // Return error page with debug info in development
+      const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
+      const debugInfo = isDev
+        ? `<pre style="text-align:left;max-width:600px;margin:1rem auto;padding:1rem;background:#fee;border:1px solid #fcc;border-radius:8px;font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-all"><strong>Error:</strong> ${errorMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;")}\n\n<strong>Stack:</strong> ${errorStack.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`
+        : "";
+
+      return new Response(
+        renderErrorPage() + debugInfo,
+        {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        },
+      );
     }
   },
 };
