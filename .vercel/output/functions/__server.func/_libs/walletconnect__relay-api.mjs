@@ -1,0 +1,108 @@
+import { b as getAugmentedNamespace } from "./react.mjs";
+function e(s, r, i = "string") {
+  if (!s[r] || typeof s[r] !== i) throw new Error(`Missing or invalid "${r}" param`);
+}
+function l(s, r) {
+  let i = true;
+  return r.forEach((t) => {
+    t in s || (i = false);
+  }), i;
+}
+function f(s, r) {
+  return Array.isArray(s) ? s.length === r : Object.keys(s).length === r;
+}
+function w(s, r) {
+  return Array.isArray(s) ? s.length >= r : Object.keys(s).length >= r;
+}
+function u(s, r, i) {
+  return (i.length ? w(s, r.length) : f(s, r.length)) ? l(s, r) : false;
+}
+function n(s, r, i = "_") {
+  const t = s.split(i);
+  return t[t.length - 1].trim().toLowerCase() === r.trim().toLowerCase();
+}
+function R(s) {
+  return b(s.method) && a(s.params);
+}
+function b(s) {
+  return n(s, "subscribe");
+}
+function a(s) {
+  return u(s, ["topic"], []);
+}
+function P(s) {
+  return c(s.method) && h(s.params);
+}
+function c(s) {
+  return n(s, "publish");
+}
+function h(s) {
+  return u(s, ["message", "topic", "ttl"], ["prompt", "tag"]);
+}
+function _(s) {
+  return o(s.method) && p(s.params);
+}
+function o(s) {
+  return n(s, "unsubscribe");
+}
+function p(s) {
+  return u(s, ["id", "topic"], []);
+}
+function S(s) {
+  return m(s.method) && d(s.params);
+}
+function m(s) {
+  return n(s, "subscription");
+}
+function d(s) {
+  return u(s, ["id", "data"], []);
+}
+function g(s) {
+  if (!b(s.method)) throw new Error("JSON-RPC Request has invalid subscribe method");
+  if (!a(s.params)) throw new Error("JSON-RPC Request has invalid subscribe params");
+  const r = s.params;
+  return e(r, "topic"), r;
+}
+function q(s) {
+  if (!c(s.method)) throw new Error("JSON-RPC Request has invalid publish method");
+  if (!h(s.params)) throw new Error("JSON-RPC Request has invalid publish params");
+  const r = s.params;
+  return e(r, "topic"), e(r, "message"), e(r, "ttl", "number"), r;
+}
+function E(s) {
+  if (!o(s.method)) throw new Error("JSON-RPC Request has invalid unsubscribe method");
+  if (!p(s.params)) throw new Error("JSON-RPC Request has invalid unsubscribe params");
+  const r = s.params;
+  return e(r, "id"), r;
+}
+function k(s) {
+  if (!m(s.method)) throw new Error("JSON-RPC Request has invalid subscription method");
+  if (!d(s.params)) throw new Error("JSON-RPC Request has invalid subscription params");
+  const r = s.params;
+  return e(r, "id"), e(r, "data"), r;
+}
+const C = { waku: { publish: "waku_publish", batchPublish: "waku_batchPublish", subscribe: "waku_subscribe", batchSubscribe: "waku_batchSubscribe", subscription: "waku_subscription", unsubscribe: "waku_unsubscribe", batchUnsubscribe: "waku_batchUnsubscribe", batchFetchMessages: "waku_batchFetchMessages" }, irn: { publish: "irn_publish", batchPublish: "irn_batchPublish", subscribe: "irn_subscribe", batchSubscribe: "irn_batchSubscribe", subscription: "irn_subscription", unsubscribe: "irn_unsubscribe", batchUnsubscribe: "irn_batchUnsubscribe", batchFetchMessages: "irn_batchFetchMessages" }, iridium: { publish: "iridium_publish", batchPublish: "iridium_batchPublish", subscribe: "iridium_subscribe", batchSubscribe: "iridium_batchSubscribe", subscription: "iridium_subscription", unsubscribe: "iridium_unsubscribe", batchUnsubscribe: "iridium_batchUnsubscribe", batchFetchMessages: "iridium_batchFetchMessages" } };
+const index_es = /* @__PURE__ */ Object.freeze({
+  __proto__: null,
+  RELAY_JSONRPC: C,
+  isPublishMethod: c,
+  isPublishParams: h,
+  isPublishRequest: P,
+  isSubscribeMethod: b,
+  isSubscribeParams: a,
+  isSubscribeRequest: R,
+  isSubscriptionMethod: m,
+  isSubscriptionParams: d,
+  isSubscriptionRequest: S,
+  isUnsubscribeMethod: o,
+  isUnsubscribeParams: p,
+  isUnsubscribeRequest: _,
+  parsePublishRequest: q,
+  parseSubscribeRequest: g,
+  parseSubscriptionRequest: k,
+  parseUnsubscribeRequest: E
+});
+const require$$9 = /* @__PURE__ */ getAugmentedNamespace(index_es);
+export {
+  require$$9 as r
+};

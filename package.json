@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "postinstall": "node scripts/patch-rollup.js"
+    "postinstall": "node scripts/patch-rollup.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
