@@ -12,7 +12,6 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { monadMainnet } from "./chain";
-import { injected } from "wagmi/connectors";
 
 export const projectId =
   (import.meta.env.VITE_REOWN_PROJECT_ID as string | undefined) ||
@@ -33,29 +32,29 @@ if (typeof window !== "undefined") {
 
 // SSR-SAFE: During SSR, WagmiAdapter is a Proxy stub (not a real class).
 // The typeof window guard prevents instantiation during SSR.
-// The instanceof check ensures we only call the real constructor in the browser.
 const wagmiAdapter =
-  typeof window !== "undefined" && WagmiAdapter && typeof (WagmiAdapter as any) === "function" && (WagmiAdapter as any).prototype
-    ? new (WagmiAdapter as any)({
+  typeof window !== "undefined" && WagmiAdapter
+    ? new WagmiAdapter({
         networks: [monadMainnet],
         projectId,
         ssr: true,
-        connectors: [injected({ shimDisconnect: true })],
       })
     : null;
 
-if (typeof window !== "undefined" && wagmiAdapter?.wagmiConfig) {
-  console.log("wagmiConfig.connectors", wagmiAdapter.wagmiConfig?.connectors);
+if (typeof window !== "undefined") {
+  console.log("wagmiAdapter", wagmiAdapter);
+  console.log("wagmiAdapter.wagmiConfig", wagmiAdapter?.wagmiConfig);
+  console.log("wagmiConfig.connectors", wagmiAdapter?.wagmiConfig?.connectors);
 }
 
 // SSR-SAFE: wagmiConfig is undefined during SSR (wagmiAdapter is null).
-// It's only used in the browser via CsrWeb3Provider.
 export const wagmiConfig: any = wagmiAdapter?.wagmiConfig;
 
 let initialized = false;
 export function initAppKit() {
   if (initialized || typeof window === "undefined" || !wagmiAdapter || !createAppKit) return;
   initialized = true;
+  console.log("Calling createAppKit");
   createAppKit({
     adapters: [wagmiAdapter],
     networks: [monadMainnet],
@@ -72,4 +71,5 @@ export function initAppKit() {
       "--w3m-font-family": "Fredoka, Nunito, system-ui, sans-serif",
     },
   });
+  console.log("createAppKit called");
 }

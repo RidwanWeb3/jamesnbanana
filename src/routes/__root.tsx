@@ -132,15 +132,24 @@ function RootComponent() {
   // During SSR, we use ssrWagmiConfig which has no wallet connectors.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    console.log("RootComponent useEffect: importing config");
     import("@/lib/web3/config").then(({ wagmiConfig, initAppKit }) => {
+      console.log("RootComponent: imported config");
+      console.log("RootComponent: wagmiConfig", wagmiConfig);
       setBrowserWagmiConfig(wagmiConfig);
+      console.log("RootComponent: calling initAppKit");
       initAppKit();
+    }).catch(err => {
+      console.error("RootComponent: error importing config", err);
     });
   }, []);
 
   // Use browser config if available, otherwise SSR config.
   // This ensures WagmiProvider is always present so hooks don't throw.
   const activeConfig = browserWagmiConfig ?? ssrWagmiConfig;
+  
+  console.log("RootComponent: activeConfig", activeConfig);
+  console.log("RootComponent: browserWagmiConfig", browserWagmiConfig);
 
   return (
     <QueryClientProvider client={queryClient}>
