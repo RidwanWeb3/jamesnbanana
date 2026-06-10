@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "rm -rf .vercel/output .nitro .vite node_modules/.cache && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": ".vercel/output/static",
   "installCommand": "npm install"
 }
