@@ -12,6 +12,7 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { monadMainnet } from "./chain";
+import { injected } from "wagmi/connectors";
 
 export const projectId =
   (import.meta.env.VITE_REOWN_PROJECT_ID as string | undefined) ||
@@ -24,6 +25,12 @@ const metadata = {
   icons: ["/favicon.ico"],
 };
 
+if (typeof window !== "undefined") {
+  console.log("=== JAMES BANANA WEB3 DEBUG ===");
+  console.log("window.ethereum", window.ethereum);
+  console.log("window.ethereum?.providers", window.ethereum?.providers);
+}
+
 // SSR-SAFE: During SSR, WagmiAdapter is a Proxy stub (not a real class).
 // The typeof window guard prevents instantiation during SSR.
 // The instanceof check ensures we only call the real constructor in the browser.
@@ -33,8 +40,13 @@ const wagmiAdapter =
         networks: [monadMainnet],
         projectId,
         ssr: true,
+        connectors: [injected({ shimDisconnect: true })],
       })
     : null;
+
+if (typeof window !== "undefined" && wagmiAdapter?.wagmiConfig) {
+  console.log("wagmiConfig.connectors", wagmiAdapter.wagmiConfig?.connectors);
+}
 
 // SSR-SAFE: wagmiConfig is undefined during SSR (wagmiAdapter is null).
 // It's only used in the browser via CsrWeb3Provider.
@@ -51,6 +63,8 @@ export function initAppKit() {
     projectId,
     metadata,
     features: { analytics: false, email: false, socials: false },
+    enableInjected: true,
+    enableEIP6963: true,
     themeMode: "light",
     themeVariables: {
       "--w3m-accent": "#FFD54A",
