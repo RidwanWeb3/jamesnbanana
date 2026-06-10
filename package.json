@@ -9,8 +9,7 @@
     "build:dev": "NODE_OPTIONS='--max-old-space-size=4096' vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write .",
-    "postinstall": "node scripts/patch-rollup.cjs"
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
