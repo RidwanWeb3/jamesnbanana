@@ -12,6 +12,8 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { monadMainnet } from "./chain";
+import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors";
+import { http } from "wagmi";
 
 export const projectId =
   (import.meta.env.VITE_REOWN_PROJECT_ID as string | undefined) ||
@@ -31,13 +33,24 @@ if (typeof window !== "undefined") {
 }
 
 // SSR-SAFE: During SSR, WagmiAdapter is a Proxy stub (not a real class).
-// The typeof window guard prevents instantiation during SSR.
 const wagmiAdapter =
   typeof window !== "undefined" && WagmiAdapter
     ? new WagmiAdapter({
         networks: [monadMainnet],
         projectId,
         ssr: true,
+        transports: {
+          [monadMainnet.id]: http(),
+        },
+        connectors: [
+          injected({ shimDisconnect: true, target: "metaMask" }),
+          injected({ shimDisconnect: true, target: "rabby" }),
+          injected({ shimDisconnect: true, target: "coinbaseWallet" }),
+          injected({ shimDisconnect: true, target: "okxWallet" }),
+          injected({ shimDisconnect: true, target: "braveWallet" }),
+          walletConnect({ projectId, metadata, showQrModal: false }),
+          coinbaseWallet({ appName: metadata.name, appLogoUrl: metadata.icons[0] }),
+        ],
       })
     : null;
 
@@ -64,6 +77,8 @@ export function initAppKit() {
     features: { analytics: false, email: false, socials: false },
     enableInjected: true,
     enableEIP6963: true,
+    enableWalletConnect: true,
+    enableCoinbase: true,
     themeMode: "light",
     themeVariables: {
       "--w3m-accent": "#FFD54A",
