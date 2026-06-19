@@ -19,6 +19,7 @@ import { Counter } from "@/components/site/Counter";
 import { monadMainnet } from "@/lib/web3/chain";
 import {
   STAKING_CONTRACT_ADDRESS,
+  JAMES_TOKEN_ADDRESS,
   vaultAbi,
   erc20Abi,
 } from "@/lib/web3/contracts";
@@ -160,56 +161,47 @@ function Staking() {
     return { emergencyMode: r[0], refundMode: r[1] };
   }, [protocolMultiData]);
 
-  // ========== Pools ==========
+  // ========== Pools (individual getPool calls — avoids getAllPools revert) ==========
   const [poolsFallback, setPoolsFallback] = useState(false);
 
-  const { data: poolsData, refetch: refetchPools, error: poolsError } = useReadContract({
-    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "getAllPools",
-    query: { refetchInterval: 30_000 },
+  const { data: pool0Data } = useReadContract({
+    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "getPool",
+    args: [0n], query: { refetchInterval: 30_000 },
   });
-
-  // Debug: log raw pool response
-  useEffect(() => {
-    if (poolsData) {
-      console.log("[STAKE] RAW POOLS:", JSON.stringify(poolsData, (_, v) =>
-        typeof v === "bigint" ? v.toString() : v
-      ));
-    }
-  }, [poolsData]);
-
-  // Debug: log pools read errors
-  useEffect(() => {
-    if (poolsError) {
-      console.error("[STAKE] Pools read error:", poolsError);
-      console.log("[STAKE] Using DEFAULT_POOLS fallback");
-      setPoolsFallback(true);
-    }
-  }, [poolsError]);
+  const { data: pool1Data } = useReadContract({
+    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "getPool",
+    args: [1n], query: { refetchInterval: 30_000 },
+  });
+  const { data: pool2Data } = useReadContract({
+    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "getPool",
+    args: [2n], query: { refetchInterval: 30_000 },
+  });
 
   const pools: Pool[] = useMemo(() => {
     if (poolsFallback) return DEFAULT_POOLS;
-    if (!poolsData) return [];
     try {
-      // Contract returns PoolConfig[] where each element is an object with:
-      // { name: string, lockDuration: uint256, rewardPercent: uint256, active: bool }
-      // poolId is the array index
-      const rawPools = poolsData as unknown as readonly { name: string; lockDuration: bigint; rewardPercent: bigint; active: boolean }[];
-      const parsed = rawPools.map((p, index) => ({
-        poolId: BigInt(index),
-        name: p.name,
-        duration: p.lockDuration,
-        rewardPercentage: p.rewardPercent,
-        active: p.active,
-      }));
+      // getPool returns a tuple: (string name, uint256 lockDuration, uint256 rewardPercent, bool active)
+      // viem decodes this as a named object with those fields
+      type RawPool = { name: string; lockDuration: bigint; rewardPercent: bigint; active: boolean };
+      const rawPools = [pool0Data, pool1Data, pool2Data];
+      const parsed = rawPools
+        .filter((p): p is RawPool => p != null && typeof p === "object" && "name" in p)
+        .map((p, index) => ({
+          poolId: BigInt(index),
+          name: p.name,
+          duration: p.lockDuration,
+          rewardPercentage: p.rewardPercent,
+          active: p.active,
+        }));
+      if (parsed.length === 0) return DEFAULT_POOLS;
       console.log("[STAKE] PARSED POOLS:", parsed);
       return parsed;
     } catch (err) {
       console.error("[STAKE] Pool parsing error:", err);
-      console.log("[STAKE] Using DEFAULT_POOLS fallback");
       setPoolsFallback(true);
       return DEFAULT_POOLS;
     }
-  }, [poolsData, poolsFallback]);
+  }, [pool0Data, pool1Data, pool2Data, poolsFallback]);
 
   // ========== MULTICALL: User Dashboard ==========
   const { data: userMultiData, refetch: refetchUser, error: userError } = useReadContracts({
@@ -297,6 +289,35 @@ function Staking() {
     } : null);
   });
 
+  // ========== Contract Validation ==========
+  const { data: contractJamesToken } = useReadContract({
+    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "jamesToken",
+  });
+  const { data: contractOwner } = useReadContract({
+    address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "owner",
+  });
+
+  // Startup validation: verify contract configuration
+  useEffect(() => {
+    console.log("[STAKE] === CONTRACT VALIDATION ===");
+    console.log("[STAKE] STAKING_CONTRACT:", STAKING_CONTRACT_ADDRESS);
+    console.log("[STAKE] JAMES_TOKEN (frontend):", JAMES_TOKEN_ADDRESS);
+    console.log("[STAKE] JAMES_TOKEN (contract):", contractJamesToken);
+    console.log("[STAKE] CONTRACT_OWNER:", contractOwner);
+
+    if (contractJamesToken && typeof contractJamesToken === "string") {
+      const matches = contractJamesToken.toLowerCase() === JAMES_TOKEN_ADDRESS.toLowerCase();
+      if (!matches) {
+        console.error("[STAKE] ⚠️ Contract configuration mismatch!");
+        console.error("[STAKE]   Contract jamesToken:", contractJamesToken);
+        console.error("[STAKE]   Frontend JAMES_TOKEN:", JAMES_TOKEN_ADDRESS);
+        console.error("[STAKE]   Run setJamesToken() on the contract to fix this.");
+      } else {
+        console.log("[STAKE] ✅ JAMES token address matches contract configuration");
+      }
+    }
+  }, [contractJamesToken, contractOwner]);
+
   const { data: stakePreviewData, error: previewError } = useReadContract({
     address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, functionName: "previewStake",
     args: [tokenAddr, amountWei, selectedPoolId],
@@ -361,7 +382,7 @@ function Staking() {
   // ========== REALTIME EVENTS ==========
   useWatchContractEvent({
     address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, eventName: "Staked",
-    onLogs() { refetchProtocol(); refetchUser(); refetchPools(); },
+    onLogs() { refetchProtocol(); refetchUser(); },
   });
   useWatchContractEvent({
     address: STAKING_CONTRACT_ADDRESS, abi: vaultAbi, eventName: "Claimed",

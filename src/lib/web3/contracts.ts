@@ -2,7 +2,7 @@
 // Deployed on Monad Mainnet (Chain ID: 143)
 
 export const STAKING_CONTRACT_ADDRESS =
-  "0x60c80270dCceE8Aa6C36aea35BfE4172a05a7777" as `0x${string}`;
+  "0x3C81F9883B852Af0e489D7924CC4CC3A3aB2a911" as `0x${string}`;
 
 // Keep legacy alias so existing imports don't break
 export const VAULT_ADDRESS = STAKING_CONTRACT_ADDRESS;
@@ -75,6 +75,31 @@ export const vaultAbi = [
         ],
       },
     ],
+  },
+  {
+    type: "function",
+    name: "getPool",
+    stateMutability: "view",
+    inputs: [{ name: "poolId", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "name", type: "string" },
+          { name: "lockDuration", type: "uint256" },
+          { name: "rewardPercent", type: "uint256" },
+          { name: "active", type: "bool" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "jamesToken",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }],
   },
   {
     type: "function",
