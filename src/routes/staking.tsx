@@ -327,17 +327,33 @@ function Staking() {
     },
   });
 
-  // Debug: log preview errors
+  // Debug: log raw preview result
   useEffect(() => {
+    if (stakePreviewData) {
+      console.log("[STAKE] RAW PREVIEW RESULT:", JSON.stringify(stakePreviewData, (_, v) =>
+        typeof v === "bigint" ? v.toString() : v
+      ));
+    }
     if (previewError) {
       console.error("[STAKE] Stake preview error:", previewError);
     }
-  }, [previewError]);
+  }, [stakePreviewData, previewError]);
 
   const stakePreview = useMemo(() => {
     if (!stakePreviewData) return null;
-    const t = stakePreviewData as readonly [bigint, bigint, boolean];
-    return { snapshotValue: t[0], rewardMon: t[1], treasuryCanAfford: t[2] };
+    try {
+      // viem decodes tuple as named object: { snapshotValue, rewardMon, treasuryCanAfford }
+      const p = stakePreviewData as unknown as { snapshotValue: bigint; rewardMon: bigint; treasuryCanAfford: boolean };
+      console.log("[STAKE] PARSED PREVIEW:", {
+        snapshotValue: p.snapshotValue.toString(),
+        rewardMon: p.rewardMon.toString(),
+        treasuryCanAfford: p.treasuryCanAfford,
+      });
+      return { snapshotValue: p.snapshotValue, rewardMon: p.rewardMon, treasuryCanAfford: p.treasuryCanAfford };
+    } catch (err) {
+      console.error("[STAKE] Preview parsing error:", err);
+      return null;
+    }
   }, [stakePreviewData]);
 
   // ========== Owner check ==========
@@ -464,7 +480,7 @@ function Staking() {
     if (wrongNetwork) { toast.error("Switch to Monad Mainnet"); return; }
     if (!tokenAddress || tokenAddress === zeroAddress) { toast.error("Enter token address"); return; }
     if (amountWei <= 0n) { toast.error("Enter amount"); return; }
-    if (!stakePreview?.treasuryCanAfford) { toast.error("Insufficient reward treasury. Please contact the administrator."); return; }
+    if (stakePreview?.treasuryCanAfford === false) { toast.error("Insufficient reward treasury. Please contact the administrator."); return; }
     if (protocolSummary?.emergencyMode || protocolSummary?.paused) { toast.error("Staking is currently disabled"); return; }
     if (!eligibility?.eligible) {
       toast.error(`You need at least ${Number(formatEther(MIN_JAMES_REQUIRED)).toLocaleString()} $JAMES to stake`);
@@ -507,7 +523,7 @@ function Staking() {
       toast.error(`You need at least ${Number(formatEther(MIN_JAMES_REQUIRED)).toLocaleString()} $JAMES to stake`);
       return;
     }
-    if (!stakePreview?.treasuryCanAfford) { toast.error("Insufficient reward treasury. Please contact the administrator."); return; }
+    if (stakePreview?.treasuryCanAfford === false) { toast.error("Insufficient reward treasury. Please contact the administrator."); return; }
 
     const needsApproval = (tokenAllowance ?? 0n) < amountWei;
     console.log("[STAKE] needsApproval:", needsApproval, "| allowance:", (tokenAllowance ?? 0n).toString(), ">= amount:", amountWei.toString());
@@ -793,8 +809,8 @@ function Staking() {
                 <div className="text-xs font-extrabold opacity-50 uppercase tracking-wider">Stake Estimation</div>
                 <Row k="Estimated Token Value" v={`${formatMon(stakePreview.snapshotValue)} MON`} />
                 <Row k="Estimated Reward" v={`${formatMon(stakePreview.rewardMon)} MON`} highlight />
-                <Row k="Treasury Available" v={`${formatMon(protocolSummary?.treasuryBalance ?? 0n)} MON`} />
-                {!stakePreview.treasuryCanAfford && (
+                <Row k="Treasury Status" v={stakePreview.treasuryCanAfford ? "✅ Sufficient" : "❌ Insufficient"} />
+                {stakePreview.treasuryCanAfford === false && (
                   <div className="mt-2 rounded-xl bg-red-50 border-2 border-red-200 p-3">
                     <div className="flex items-start gap-2">
                       <span className="text-lg">⚠️</span>
