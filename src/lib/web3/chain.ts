@@ -11,5 +11,6 @@ export const monadMainnet = defineChain({
   blockExplorers: {
     default: { name: "Robinhood Chain Explorer", url: "https://explorer.monad.xyz" },
   },
+  iconUrl: "https://cryptologos.cc/logos/robinhood-hood-logo.png",
   testnet: false,
 });
