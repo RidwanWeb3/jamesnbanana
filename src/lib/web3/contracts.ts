@@ -1,5 +1,5 @@
 // Contract addresses + ABIs for James Universal Staking V3
-// Deployed on Monad Mainnet (Chain ID: 143)
+// Deployed on Robinhood Chain Mainnet (Chain ID: 143)
 
 export const STAKING_CONTRACT_ADDRESS =
   "0x3C81F9883B852Af0e489D7924CC4CC3A3aB2a911" as `0x${string}`;

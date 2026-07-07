@@ -10,18 +10,18 @@
 // Environment variables:
 //   SUPABASE_URL         — Supabase project URL
 //   SUPABASE_SERVICE_KEY — Supabase service role key
-//   RPC_URL              — Monad RPC endpoint
+//   RPC_URL              — Robinhood Chain RPC endpoint
 //   CONTRACT_ADDRESS     — Staking contract address
 //   START_BLOCK          — Block to start from
 // ---------------------------------------------------------------------------
 
 const { createPublicClient, http, parseAbiItem } = require("viem");
 
-// Monad chain definition (inline to avoid TS)
+// Robinhood Chain chain definition (inline to avoid TS)
 const monadMainnet = {
   id: 143,
-  name: "Monad",
-  nativeCurrency: { name: "Monad", symbol: "MON", decimals: 18 },
+  name: "Robinhood Chain",
+  nativeCurrency: { name: "Robinhood Chain", symbol: "MON", decimals: 18 },
   rpcUrls: {
     default: { http: [process.env.RPC_URL || "https://rpc.monad.xyz"] },
   },
