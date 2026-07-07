@@ -44,7 +44,7 @@ import type { Address } from "viem";
 export const Route = createFileRoute("/staking")({
   head: () => ({
     meta: [
-      { title: "James Universal Staking | Monad" },
+      { title: "James Universal Staking | Robinhood Chain" },
       {
         name: "description",
         content: "Stake your tokens and earn MON rewards with James Universal Staking V3.",
@@ -697,7 +697,7 @@ function Staking() {
           <FloatingBananas count={14} />
           <div className="relative grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <span className="inline-block rounded-full bg-white px-3 py-1 text-xs font-extrabold">STAKING DAPP · MONAD</span>
+              <span className="inline-block rounded-full bg-white px-3 py-1 text-xs font-extrabold">STAKING DAPP · ROBINHOOD CHAIN</span>
               <h1 className="mt-3 font-display text-5xl md:text-7xl font-extrabold">James Universal Staking</h1>
               <p className="mt-3 text-xl md:text-2xl font-extrabold">Stake Tokens, Earn MON</p>
               <p className="mt-2 max-w-lg text-base md:text-lg font-semibold text-foreground/80">
@@ -748,7 +748,7 @@ function Staking() {
       {wrongNetwork && (
         <section className="mx-auto max-w-7xl px-4 mt-6">
           <div className="rounded-3xl border-4 border-[color:var(--orange-accent)] bg-[color:var(--banana-cream)] p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-cute">
-            <div className="font-extrabold text-lg">Please switch to Monad Mainnet to use the staking app.</div>
+            <div className="font-extrabold text-lg">Please switch to Robinhood Chain Mainnet to use the staking app.</div>
             <button onClick={doSwitch} disabled={switching} className="rounded-full bg-foreground text-[color:var(--banana)] px-5 py-2 font-extrabold shadow-cute disabled:opacity-60">
               {switching ? "Switching…" : "Switch Network"}
             </button>

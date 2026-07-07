@@ -10,7 +10,7 @@ export function Footer() {
             <img src={logo} alt="James Banana" className="h-14 w-14 rounded-full ring-banana" />
             <div>
               <div className="font-display text-2xl font-extrabold">James Banana</div>
-              <div className="text-sm font-bold opacity-80">$JAMES · Monad Mainnet</div>
+              <div className="text-sm font-bold opacity-80">$JAMES · Robinhood Chain Mainnet</div>
             </div>
           </div>
           <div className="flex items-center gap-3 font-bold">

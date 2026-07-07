@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import logo from "@/assets/logobanana.jpg?url";
 import banner from "@/assets/bannerbanana.jpeg?url";
 import asset1 from "@/assets/assets1.jpg?url";
-import asset2 from "@/assets/assets2.jpeg?url";
 import video from "@/assets/videobanana.mp4?url";
 import { FloatingBananas } from "@/components/site/FloatingBananas";
 import { Counter } from "@/components/site/Counter";
@@ -12,10 +11,10 @@ import { Counter } from "@/components/site/Counter";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "JAMES BANANA | AI Meme Video Generator On Monad" },
-      { name: "description", content: "James Banana — the mysterious cat trapped in a banana peel. Create AI meme videos, watch Banana TV, and stake $JAMES on Monad." },
-      { property: "og:title", content: "JAMES BANANA | AI Meme Video Generator On Monad" },
-      { property: "og:description", content: "Create hilarious AI-generated meme videos with James Banana and stake on Monad." },
+      { title: "JAMES BANANA | AI Meme Video Generator On Robinhood Chain" },
+      { name: "description", content: "James Banana — the mysterious cat trapped in a banana peel. Create AI meme videos, watch Banana TV, and stake $JAMES on Robinhood Chain." },
+      { property: "og:title", content: "JAMES BANANA | AI Meme Video Generator On Robinhood Chain" },
+      { property: "og:description", content: "Create hilarious AI-generated meme videos with James Banana and stake on Robinhood Chain." },
       { property: "og:image", content: logo },
     ],
     links: [{ rel: "canonical", href: "/" }],
@@ -39,13 +38,13 @@ function Index() {
           <div className="relative grid md:grid-cols-2 gap-8 p-6 md:p-14">
             <div>
               <motion.span initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-1.5 text-sm font-extrabold shadow-cute">
-                🚀 Live on Monad Mainnet · $JAMES
+                🚀 Live on Robinhood Chain Mainnet · $JAMES
               </motion.span>
               <motion.h1 initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="mt-4 font-display text-5xl md:text-7xl font-extrabold leading-[0.95] drop-shadow-[0_3px_0_rgba(255,255,255,0.6)]">
                 JAMES <br /> <span className="text-[color:var(--orange-accent)]">BANANA</span>
               </motion.h1>
               <p className="mt-4 text-xl md:text-2xl font-extrabold text-foreground/90">
-                The First AI Meme Video Generator On Monad
+                The First AI Meme Video Generator On Robinhood Chain
               </p>
               <p className="mt-3 max-w-xl text-base md:text-lg font-semibold text-foreground/80">
                 Create hilarious AI-powered meme videos in seconds and unleash chaos across the internet. 🍌💥
@@ -86,7 +85,7 @@ function Index() {
             <div className="mt-5 space-y-4 text-lg font-semibold text-foreground/85">
               <p>James Banana is a mysterious cat trapped inside a banana peel. <strong>Nobody knows where he came from.</strong></p>
               <p>Some say he escaped an abandoned AI experiment. Others believe he was born from pure internet chaos.</p>
-              <p>Today he spends his days creating absurd meme videos and spreading laughter throughout the Monad ecosystem. 🍌⚡</p>
+              <p>Today he spends his days creating absurd meme videos and spreading laughter throughout the Robinhood Chain ecosystem. 🍌⚡</p>
             </div>
             <div className="mt-6 flex flex-wrap gap-2">
               {["Creativity","Humor","Community","Internet Culture","Meme Innovation"].map(t => (
@@ -106,7 +105,7 @@ function Index() {
             { e: "🤖", t: "AI Meme Generator", d: "Turn any image into pure chaos with one click." },
             { e: "🎬", t: "Viral Video Creation", d: "Captions, voices, vibes — auto-edited for max laughs." },
             { e: "💛", t: "Community Powered", d: "Built by memers, for memers. 100% banana energy." },
-            { e: "⚡", t: "Monad Speed", d: "Blazing-fast txs so your memes ship instantly." },
+            { e: "⚡", t: "Robinhood Chain Speed", d: "Blazing-fast txs so your memes ship instantly." },
             { e: "🎨", t: "Creator Friendly", d: "Earn rewards every time the timeline laughs." },
             { e: "🌐", t: "Internet Native", d: "If it's online, James Banana is already there." },
           ].map((c, i) => (
@@ -169,7 +168,7 @@ function Index() {
       <Section>
         <h2 className="text-4xl md:text-5xl font-extrabold text-center">🖼 Banana Archives</h2>
         <div className="mt-10 columns-1 sm:columns-2 lg:columns-3 gap-5 [column-fill:_balance]">
-          {[asset1, banner, asset2, logo].map((src,i)=>(
+          {[asset1, banner, logo].map((src,i) => (
             <motion.div key={i} whileHover={{ scale: 1.03, rotate: i % 2 ? 1 : -1 }} className="mb-5 break-inside-avoid rounded-[24px] overflow-hidden border-4 border-white shadow-cute bg-white">
               <img src={src} alt={`Banana archive ${i+1}`} loading="lazy" className="w-full h-auto block" />
             </motion.div>
@@ -184,9 +183,9 @@ function Index() {
           {[
             { p: "Phase 1", e: "🍌", t: "Genesis", items: ["Launch James Banana","Community Building","Website Launch"] },
             { p: "Phase 2", e: "🎨", t: "Studio Era", items: ["AI Meme Generator Beta","Banana Studio","Creator Tools"] },
-            { p: "Phase 3", e: "⚡", t: "Monad Expansion", items: ["Ecosystem Push","Community Events","Creator Rewards"] },
+            { p: "Phase 3", e: "⚡", t: "Robinhood Chain Expansion", items: ["Ecosystem Push","Community Events","Creator Rewards"] },
             { p: "Phase 4", e: "👑", t: "World Domination", items: ["Global Meme Reign","Mobile App","Advanced AI"] },
-          ].map((ph,i)=>(
+          ].map((ph,i) => (
             <motion.div key={ph.p} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i*0.08 }}
               className={`rounded-[28px] p-6 shadow-cute border-2 border-white ${i%2===0 ? "bg-banana-gradient" : "bg-white"} relative`}>
               <div className="text-5xl">{ph.e}</div>

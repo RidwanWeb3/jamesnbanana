@@ -21,8 +21,8 @@ export const projectId =
 
 const metadata = {
   name: "James Banana — Banana Vault",
-  description: "Stake MON on Monad. Power the James Banana ecosystem.",
-  url: typeof window !== "undefined" ? window.location.origin : "https://bananastaking.vercel.app",
+  description: "Stake MON on Robinhood Chain. Power the James Banana ecosystem.",
+  url: typeof window !== "undefined" ? window.location.origin : "https://fun.noxa.fi/robinhood/",
   icons: ["/favicon.ico"],
 };
 
