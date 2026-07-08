@@ -14,7 +14,7 @@ export function Footer() {
             </div>
           </div>
           <div className="flex items-center gap-3 font-bold">
-            <a href="https://x.com/jamescatbanana" target="_blank" rel="noreferrer" className="rounded-full bg-white px-4 py-2 shadow-cute hover:scale-105 transition">🐦 @jamescatbanana</a>
+            <a href="https://x.com/TheJamesBanana" target="_blank" rel="noreferrer" className="rounded-full bg-white px-4 py-2 shadow-cute hover:scale-105 transition">🐦 @TheJamesBanana</a>
             <a href="/staking" className="rounded-full bg-foreground text-[color:var(--banana)] px-4 py-2 shadow-cute hover:scale-105 transition">🍌 Vault</a>
           </div>
         </div>
