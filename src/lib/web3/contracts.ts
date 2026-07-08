@@ -9,7 +9,7 @@ export const VAULT_ADDRESS = STAKING_CONTRACT_ADDRESS;
 
 // JAMES token address
 export const JAMES_TOKEN_ADDRESS =
-  "0x60c80270dCceE8Aa6C36aea35BfE4172a05a7777" as `0x${string}`;
+  "0x509a12dc001a6e1edb6b9a4f165efc5ef55c15dc" as `0x${string}`;
 
 export const hasContracts = () =>
   STAKING_CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000";

@@ -52,7 +52,17 @@ function Index() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <a href="#studio" className="rounded-full bg-foreground text-[color:var(--banana)] px-6 py-3 font-extrabold shadow-cute hover:scale-105 transition">🍌 Create Meme</a>
                 <a href="#tv" className="rounded-full bg-white px-6 py-3 font-extrabold shadow-cute border-2 border-[color:var(--banana)] hover:scale-105 transition">🎬 Watch Videos</a>
-                <a href="https://x.com/jamescatbanana" target="_blank" rel="noreferrer" className="rounded-full bg-[color:var(--leaf)] text-white px-6 py-3 font-extrabold shadow-cute hover:scale-105 transition">🚀 Join Community</a>
+                <a href="https://fun.noxa.fi/robinhood/token/0x509a12dc001a6e1edb6b9a4f165efc5ef55c15dc" target="_blank" rel="noreferrer" className="rounded-full bg-[color:var(--orange-accent)] text-white px-6 py-3 font-extrabold shadow-cute hover:scale-105 transition">🛒 Buy $JAMES</a>
+                <a href="https://dexscreener.com/robinhood/0xc7ad1eec5c8bd2d9378737cd9c48853f01e0b6ee" target="_blank" rel="noreferrer" className="rounded-full bg-[color:var(--leaf)] text-white px-6 py-3 font-extrabold shadow-cute hover:scale-105 transition">📈 View Chart</a>
+                <a href="https://x.com/jamescatbanana" target="_blank" rel="noreferrer" className="rounded-full bg-white px-6 py-3 font-extrabold shadow-cute border-2 border-[color:var(--banana)] hover:scale-105 transition">🚀 Join Community</a>
+              </div>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 shadow-cute">
+                <span className="text-xs font-extrabold opacity-70">Contract:</span>
+                <span className="text-xs font-bold">0x509a12dc001a6e1edb6b9a4f165efc5ef55c15dc</span>
+                <button onClick={() => {
+                  navigator.clipboard.writeText("0x509a12dc001a6e1edb6b9a4f165efc5ef55c15dc");
+                  toast.success("CA copied! 🍌");
+                }} className="text-xs font-extrabold text-[color:var(--orange-accent)] hover:underline">Copy</button>
               </div>
             </div>
             <div className="relative flex items-center justify-center min-h-[280px]">
